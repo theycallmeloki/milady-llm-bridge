@@ -51,7 +51,7 @@ async def main():
         llm_config=LLMConfig(
             api_key="ollama",  # Can be any string for local testing
             model="mistral-nemo:12b-instruct-2407-q8_0",
-            base_url="http://192.168.87.34:11434/v1"  # Point to your local model's endpoint
+            base_url="http://localhost:11434/v1"  # Point to your local model's endpoint
         ),
         system_prompt="You are a helpful assistant that can use tools to help answer questions."
     )
