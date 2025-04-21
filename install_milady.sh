@@ -38,10 +38,12 @@ fi
 echo "Detected platform: $SYSTEM-$ARCH"
 
 # Get latest release info
-LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/theycallmeloki/mcp-llm-bridge/releases/latest | grep "browser_download_url.*milady-$SYSTEM-$ARCH" | cut -d : -f 2,3 | tr -d \")
+LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/theycallmeloki/mcp-llm-bridge/releases/latest | grep "browser_download_url.*milady-$SYSTEM-$ARCH" | head -n 1 | cut -d : -f 2,3 | tr -d \")
 
 if [[ -z "$LATEST_RELEASE_URL" ]]; then
   echo "Error: Could not find a release for your platform ($SYSTEM-$ARCH)"
+  echo "Please download the appropriate binary directly from:"
+  echo "https://github.com/theycallmeloki/mcp-llm-bridge/releases/latest"
   exit 1
 fi
 
