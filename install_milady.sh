@@ -18,7 +18,7 @@ elif [[ "$SYSTEM" == "linux" ]]; then
 else
   echo "Unsupported operating system: $SYSTEM"
   echo "Please download the appropriate binary directly from:"
-  echo "https://github.com/theycallmeloki/mcp-llm-bridge/releases/latest"
+  echo "https://github.com/theycallmeloki/milady-llm-bridge/releases/latest"
   exit 1
 fi
 
@@ -31,26 +31,23 @@ elif [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
 else
   echo "Unsupported architecture: $ARCH"
   echo "Please download the appropriate binary directly from:"
-  echo "https://github.com/theycallmeloki/mcp-llm-bridge/releases/latest"
+  echo "https://github.com/theycallmeloki/milady-llm-bridge/releases/latest"
   exit 1
 fi
 
 echo "Detected platform: $SYSTEM-$ARCH"
 
 # Get latest release info
-LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/theycallmeloki/mcp-llm-bridge/releases/latest | grep "browser_download_url.*milady-$SYSTEM-$ARCH" | head -n 1 | cut -d : -f 2,3 | tr -d \")
+LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/theycallmeloki/milady-llm-bridge/releases/latest | grep "browser_download_url.*milady-$SYSTEM-$ARCH" | head -n 1 | sed 's/.*"browser_download_url": *"\(.*\)".*/\1/')
 
 if [[ -z "$LATEST_RELEASE_URL" ]]; then
   echo "Error: Could not find a release for your platform ($SYSTEM-$ARCH)"
   echo "Please download the appropriate binary directly from:"
-  echo "https://github.com/theycallmeloki/mcp-llm-bridge/releases/latest"
+  echo "https://github.com/theycallmeloki/milady-llm-bridge/releases/latest"
   exit 1
 fi
 
 echo "Downloading latest milady CLI from: $LATEST_RELEASE_URL"
-
-# Fixed installation directory
-INSTALL_DIR="/usr/local/bin"
 
 # Create a temporary directory
 TEMP_DIR=$(mktemp -d)
@@ -60,17 +57,57 @@ TEMP_FILE="$TEMP_DIR/milady"
 curl -L -o "$TEMP_FILE" "$LATEST_RELEASE_URL"
 chmod +x "$TEMP_FILE"
 
-# Check if sudo is needed
-if [ -w "$INSTALL_DIR" ]; then
+# Determine installation directory
+PRIMARY_INSTALL_DIR="/usr/local/bin"
+USER_BIN_DIR="$HOME/.local/bin"
+FALLBACK_BIN_DIR="$HOME/bin"
+
+if [ -w "$PRIMARY_INSTALL_DIR" ]; then
+  # Can write to /usr/local/bin
+  INSTALL_DIR="$PRIMARY_INSTALL_DIR"
   echo "Installing milady CLI to $INSTALL_DIR..."
   mv "$TEMP_FILE" "$INSTALL_DIR/milady"
-else
+elif command -v sudo >/dev/null 2>&1; then
+  # Try with sudo
+  INSTALL_DIR="$PRIMARY_INSTALL_DIR"
   echo "Installing milady CLI to $INSTALL_DIR (requires sudo)..."
-  sudo mv "$TEMP_FILE" "$INSTALL_DIR/milady"
+  if sudo mv "$TEMP_FILE" "$INSTALL_DIR/milady" 2>/dev/null; then
+    echo "Successfully installed with sudo."
+  else
+    # Fall back to user directory if sudo fails
+    INSTALL_DIR="$USER_BIN_DIR"
+    mkdir -p "$INSTALL_DIR"
+    mv "$TEMP_FILE" "$INSTALL_DIR/milady"
+    echo "Sudo failed. Installed to $INSTALL_DIR instead."
+  fi
+else
+  # No sudo, use ~/.local/bin which is often in PATH
+  INSTALL_DIR="$USER_BIN_DIR"
+  mkdir -p "$INSTALL_DIR"
+  mv "$TEMP_FILE" "$INSTALL_DIR/milady"
+  echo "Installing milady CLI to $INSTALL_DIR (user directory)..."
+
+  # Make sure the directory is in PATH
+  if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
+    echo "Adding $INSTALL_DIR to your PATH..."
+    echo 'export PATH="$PATH:'"$INSTALL_DIR"'"' >> "$HOME/.bashrc"
+    if [ -f "$HOME/.zshrc" ]; then
+      echo 'export PATH="$PATH:'"$INSTALL_DIR"'"' >> "$HOME/.zshrc"
+    fi
+    echo "NOTE: You'll need to restart your terminal or run 'source ~/.bashrc' to use the milady command."
+  fi
 fi
 
 # Clean up
 rm -rf "$TEMP_DIR"
 
 echo "✅ Installed milady CLI to $INSTALL_DIR/milady"
-echo "You can now run the milady CLI by typing: milady"
+
+if echo "$PATH" | grep -q "$INSTALL_DIR"; then
+  echo "You can now run the milady CLI by typing: milady"
+else
+  echo "To run the milady CLI, either:"
+  echo "1. Restart your terminal session, or"
+  echo "2. Run: source ~/.bashrc"
+  echo "Then you can use the 'milady' command"
+fi
