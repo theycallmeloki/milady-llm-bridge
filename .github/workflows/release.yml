@@ -32,8 +32,19 @@ jobs:
           release_branches: main
           initial_version: 0.0.1
           
-      - name: Build project
-        run: python build_binaries.py
+      - name: Build native binary
+        run: python build_binaries.py --platform native
+        
+      - name: Setup Docker
+        uses: docker/setup-buildx-action@v2
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: arm64
+          
+      - name: Build ARM64 binary
+        run: python build_binaries.py --platform arm64
         
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1

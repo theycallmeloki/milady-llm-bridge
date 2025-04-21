@@ -39,7 +39,7 @@ def build_native():
     dist_dir.mkdir(exist_ok=True)
     
     # Set binary name based on platform
-    binary_name = "milady"
+    binary_name = f"milady-{system}-{machine}"
     if system == "windows":
         binary_name += ".exe"
     
@@ -80,8 +80,8 @@ def build_docker_arm64():
         "apt-get install -y python3-pip && "
         "pip install pyinstaller && "
         "pip install -e . && "
-        "pyinstaller --onefile --name milady src/mcp_llm_bridge/main.py && "
-        "chmod 755 dist/milady"
+        "pyinstaller --onefile --name milady-linux-arm64 src/mcp_llm_bridge/main.py && "
+        "chmod 755 dist/milady-linux-arm64"
     ]
     
     # Create dist directory
@@ -91,7 +91,7 @@ def build_docker_arm64():
     # Run Docker command
     try:
         run_command(docker_cmd)
-        print("Build complete. Binary available at dist/milady")
+        print("Build complete. Binary available at dist/milady-linux-arm64")
     except subprocess.CalledProcessError as e:
         print(f"Error building ARM64 binary: {e}")
         print("Make sure Docker is installed and has ARM64 emulation support.")

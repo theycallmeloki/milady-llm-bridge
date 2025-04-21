@@ -17,7 +17,17 @@ Demo:
 
 ![MCP LLM Bridge Demo](assets/output.gif)
 
-## Quick Start
+## Quick Install
+
+One-liner to install the latest release:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/laneone/mcp-llm-bridge/main/install_milady.sh | bash
+```
+
+The script will detect your operating system and architecture, download the appropriate binary, and install it to `/usr/local/bin/milady`.
+
+## Building from Source
 
 ```bash
 # Install
