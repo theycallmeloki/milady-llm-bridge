@@ -4,7 +4,8 @@ A bridge connecting Milady Context Protocol (MCP) servers to OpenAI-compatible L
 
 The implementation provides a bidirectional protocol translation layer between Milady Context Protocol and OpenAI's function-calling interface. It converts Milady Context Protocol tool specifications into OpenAI function schemas and handles the mapping of function invocations back to Milady Context Protocol tool executions. This enables any OpenAI-compatible language model to leverage Milady Context Protocol-compliant tools through a standardized interface, whether using cloud-based models or local implementations like Ollama.
 
-Read more about Milady Context Protocol [here](https://github.com/theycallmeloki/MiladyOS): 
+Read more about Milady Context Protocol [here](https://github.com/theycallmeloki/MiladyOS)
+
 Read more about MCP by Anthropic here:
 
 - [Resources](https://modelcontextprotocol.io/docs/concepts/resources)
