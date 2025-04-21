@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Build script to create standalone binaries for mcp-llm-bridge using PyInstaller.
-This script supports building for the current platform or cross-compiling using Docker.
+This script supports building for multiple platforms using Docker.
 """
 
 import os
@@ -27,8 +27,10 @@ def build_native():
     
     # Get platform info
     system = platform.system().lower()
+    if system == "darwin":
+        system = "macos"
+        
     machine = platform.machine().lower()
-    
     if machine == "x86_64":
         machine = "amd64"
     elif machine in ["aarch64", "arm64"]:
@@ -63,16 +65,35 @@ def build_native():
     
     print(f"Build complete. Binary available at dist/{binary_name}")
 
-def build_docker_arm64():
-    """Build for Linux ARM64 using Docker"""
-    print("Building for Linux ARM64 using Docker")
+def build_docker(platform, arch):
+    """Build for the specified platform and architecture using Docker"""
+    if platform == "macos":
+        docker_platform = f"linux/{arch}"
+        print(f"Note: Building macOS binaries requires a macOS host. Using Linux/{arch} as fallback.")
+        platform = "linux"
+    elif platform == "windows" and arch == "arm64":
+        print("Note: Windows ARM64 is not fully supported. Building for Windows AMD64 instead.")
+        docker_platform = "linux/amd64"
+        arch = "amd64"
+    else:
+        docker_platform = f"linux/{arch}"
+    
+    binary_name = f"milady-{platform}-{arch}"
+    if platform == "windows":
+        binary_name += ".exe"
+    
+    print(f"Building for {platform}-{arch} using Docker on {docker_platform}")
     
     # Get current directory as absolute path
     current_dir = os.path.abspath(os.getcwd())
     
+    # Create dist directory
+    dist_dir = Path("dist")
+    dist_dir.mkdir(exist_ok=True)
+    
     # Prepare Docker build command
     docker_cmd = [
-        "docker", "run", "--platform", "linux/arm64", "--rm",
+        "docker", "run", "--platform", docker_platform, "--rm",
         "-v", f"{current_dir}:/app", "-w", "/app",
         "python:3.12-slim",
         "bash", "-c",
@@ -80,31 +101,56 @@ def build_docker_arm64():
         "apt-get install -y python3-pip && "
         "pip install pyinstaller && "
         "pip install -e . && "
-        "pyinstaller --onefile --name milady-linux-arm64 src/mcp_llm_bridge/main.py && "
-        "chmod 755 dist/milady-linux-arm64"
+        f"pyinstaller --onefile --name {binary_name} src/mcp_llm_bridge/main.py && "
+        f"chmod 755 dist/{binary_name}"
     ]
-    
-    # Create dist directory
-    dist_dir = Path("dist")
-    dist_dir.mkdir(exist_ok=True)
     
     # Run Docker command
     try:
         run_command(docker_cmd)
-        print("Build complete. Binary available at dist/milady-linux-arm64")
+        print(f"Build complete. Binary available at dist/{binary_name}")
     except subprocess.CalledProcessError as e:
-        print(f"Error building ARM64 binary: {e}")
-        print("Make sure Docker is installed and has ARM64 emulation support.")
-        print("You may need to run: docker run --privileged --rm tonistiigi/binfmt --install arm64")
+        print(f"Error building {platform}-{arch} binary: {e}")
+        print("Make sure Docker is installed and has proper architecture emulation support.")
+        print("For ARM64 emulation: docker run --privileged --rm tonistiigi/binfmt --install arm64")
+
+def build_linux_arm64():
+    """Legacy function for backward compatibility"""
+    build_docker("linux", "arm64")
+
+def build_all():
+    """Build binaries for all supported platforms"""
+    platforms = [
+        ("linux", "amd64"),
+        ("linux", "arm64"),
+        ("windows", "amd64"),
+    ]
+    
+    for platform, arch in platforms:
+        try:
+            print(f"\n=== Building {platform}-{arch} ===\n")
+            build_docker(platform, arch)
+        except Exception as e:
+            print(f"Error building {platform}-{arch}: {e}")
+    
+    print("\nBuild process complete. Check the dist/ directory for binaries.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build mcp-llm-bridge binaries")
-    parser.add_argument("--platform", choices=["native", "arm64"], 
-                        default="native", help="Target platform (default: native)")
+    parser.add_argument("--platform", 
+                        choices=["native", "linux-amd64", "linux-arm64", "windows-amd64", "all", "arm64"],
+                        default="native", 
+                        help="Target platform (default: native)")
     
     args = parser.parse_args()
     
     if args.platform == "native":
         build_native()
-    elif args.platform == "arm64":
-        build_docker_arm64()
+    elif args.platform == "arm64" or args.platform == "linux-arm64":
+        build_linux_arm64()
+    elif args.platform == "linux-amd64":
+        build_docker("linux", "amd64")
+    elif args.platform == "windows-amd64":
+        build_docker("windows", "amd64")
+    elif args.platform == "all":
+        build_all()

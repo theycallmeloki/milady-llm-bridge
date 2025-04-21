@@ -5,13 +5,52 @@ on:
     branches: [main]
 
 jobs:
-  release:
+  create-tag:
     runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.create_release.outputs.new_tag }}
+      changelog: ${{ steps.create_release.outputs.changelog }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: Bump version and create tag
+        id: create_release
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+          release_branches: main
+          initial_version: 0.0.1
+
+  build:
+    needs: create-tag
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: amd64
+          - os: ubuntu-latest
+            platform: linux
+            arch: arm64
+            setup-qemu: true
+          - os: windows-latest
+            platform: windows
+            arch: amd64
+          - os: macos-latest
+            platform: macos
+            arch: amd64
+          - os: macos-latest
+            platform: macos
+            arch: arm64
+            
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -21,38 +60,65 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build setuptools wheel
-
-      - name: Bump version and create release
-        id: create_release
-        uses: mathieudutour/github-tag-action@v6.1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          default_bump: patch
-          release_branches: main
-          initial_version: 0.0.1
-          
-      - name: Build native binary
-        run: python build_binaries.py --platform native
-        
-      - name: Setup Docker
-        uses: docker/setup-buildx-action@v2
+          pip install build setuptools wheel pyinstaller
 
       - name: Setup QEMU
+        if: ${{ matrix.setup-qemu }}
         uses: docker/setup-qemu-action@v2
         with:
           platforms: arm64
+
+      - name: Setup Docker
+        if: ${{ matrix.setup-qemu }}
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build binary
+        run: |
+          # Set binary name
+          if [ "${{ matrix.platform }}" = "windows" ]; then
+            BINARY_NAME="milady-${{ matrix.platform }}-${{ matrix.arch }}.exe"
+          else
+            BINARY_NAME="milady-${{ matrix.platform }}-${{ matrix.arch }}"
+          fi
           
-      - name: Build ARM64 binary
-        run: python build_binaries.py --platform arm64
-        
-      - name: Upload Release Assets
+          # Choose build method
+          if [ "${{ matrix.platform }}" = "linux" ] && [ "${{ matrix.arch }}" = "arm64" ]; then
+            python build_binaries.py --platform arm64
+          else
+            # Native build will detect platform
+            mkdir -p dist
+            pyinstaller --onefile --name "$BINARY_NAME" src/mcp_llm_bridge/main.py
+          fi
+        shell: bash
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: milady-${{ matrix.platform }}-${{ matrix.arch }}
+          path: dist/milady-${{ matrix.platform }}-${{ matrix.arch }}*
+          if-no-files-found: error
+
+  release:
+    needs: [create-tag, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: dist
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release_assets
+          find dist -type f -not -path "*/\.*" -exec cp {} release_assets/ \;
+          ls -la release_assets/
+
+      - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.create_release.outputs.new_tag }}
-          name: Release ${{ steps.create_release.outputs.new_tag }}
-          body: ${{ steps.create_release.outputs.changelog }}
-          files: |
-            dist/milady*
+          tag_name: ${{ needs.create-tag.outputs.tag_name }}
+          name: Release ${{ needs.create-tag.outputs.tag_name }}
+          body: ${{ needs.create-tag.outputs.changelog }}
+          files: release_assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

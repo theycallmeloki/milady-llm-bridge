@@ -22,7 +22,7 @@ Demo:
 One-liner to install the latest release:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/laneone/mcp-llm-bridge/main/install_milady.sh | bash
+curl -sSL https://raw.githubusercontent.com/theycallmeloki/mcp-llm-bridge/main/install_milady.sh | bash
 ```
 
 The script will detect your operating system and architecture, download the appropriate binary, and install it to `/usr/local/bin/milady`.
