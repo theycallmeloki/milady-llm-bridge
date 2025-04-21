@@ -1,5 +1,6 @@
 # src/mcp_llm_bridge/llm_client.py
 import openai
+import json
 
 class LLMResponse:
     def __init__(self, completion):
@@ -11,7 +12,25 @@ class LLMResponse:
         self.tool_calls = self.message.tool_calls if hasattr(self.message, "tool_calls") else None
         
     def get_message(self):
-        return {"role": "assistant", "content": self.content, "tool_calls": self.tool_calls}
+        # Ensure we properly format the tool_calls
+        msg = {"role": "assistant", "content": self.content}
+        if self.tool_calls:
+            msg["tool_calls"] = []
+            for tc in self.tool_calls:
+                if hasattr(tc, 'id') and hasattr(tc, 'function'):
+                    # Object style
+                    msg["tool_calls"].append({
+                        "id": tc.id,
+                        "type": "function", 
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments
+                        }
+                    })
+                elif isinstance(tc, dict) and 'id' in tc and 'function' in tc:
+                    # Dictionary style
+                    msg["tool_calls"].append(tc)
+        return msg
 
 class LLMClient:
     def __init__(self, config):
@@ -29,11 +48,12 @@ class LLMClient:
         # Add tool results to conversation
         if tool_results:
             for result in tool_results:
-                self.messages.append({
+                tool_message = {
                     "role": "tool", 
                     "content": str(result.get("output", "")),
                     "tool_call_id": result["tool_call_id"]
-                })
+                }
+                self.messages.append(tool_message)
         
         # Prepare messages
         msgs = []
@@ -93,14 +113,23 @@ class LLMClient:
             })()
         else:
             # Non-streaming mode
-            completion = self.client.chat.completions.create(
-                model=self.config.model,
-                messages=msgs,
-                tools=self.tools if self.tools else None,
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens
-            )
-        
+            try:
+                completion = self.client.chat.completions.create(
+                    model=self.config.model,
+                    messages=msgs,
+                    tools=self.tools if self.tools else None,
+                    temperature=self.config.temperature,
+                    max_tokens=self.config.max_tokens
+                )
+            
+                response = LLMResponse(completion)
+                self.messages.append(response.get_message())
+                return response
+            except Exception as e:
+                print(f"LLM API error: {str(e)}")
+                raise
+            
+        # For streaming mode
         response = LLMResponse(completion)
         self.messages.append(response.get_message())
         return response

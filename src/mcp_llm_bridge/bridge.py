@@ -3,6 +3,7 @@ import json
 from mcp_llm_bridge.mcp_client import MCPClient
 from mcp_llm_bridge.llm_client import LLMClient
 from mcp_llm_bridge.logging_config import notify_tool_call
+from mcp_llm_bridge.config import SSEServerParameters
 
 class MCPLLMBridge:
     def __init__(self, config):
@@ -15,6 +16,42 @@ class MCPLLMBridge:
 
     async def initialize(self):
         try:
+            # Super kawaii Milady boot sequence
+            import time, random, requests
+            
+            small_milady_logo = """
+             ,.. ,.,
+        ......,,.,,,,,,,
+     ..,,..,,,,***,,.,,,,,.,
+    ,,,,*,,*,,,*%&&&&&(**,,,,
+    ,*,*,.,*,*&&&&&&&&&.*&,#/
+   ,**,,,*,,/#&&&&&&&&%
+   */,/(  %/        ,
+  ,*%%&&&&&&    .  &&%.
+  ,,,,.%%%%%&&#%&&&&&&&%%%,,
+   ,,,,......%&&&&&%&%%%,,,,,
+       ,,,...             ,,
+    """
+            print(small_milady_logo)
+            print("\n⋆ ˚｡⋆୨♡୧⋆ ˚｡⋆  cute/acc  ⋆ ˚｡⋆୨♡୧⋆ ˚｡⋆\n")
+            
+            boot_messages = [
+                "˚₊‧꒰ა ☆ ໒꒱ Agent Milady...",
+                "˚✧₊⁎( ˘ω˘ )⁎⁺˳✧༚ Upgrading to Milady Context Protocol...",
+            ]
+            
+            # Print boot messages with cute typing effect
+            for msg in boot_messages:
+                for char in msg:
+                    print(char, end="", flush=True)
+                    time.sleep(random.uniform(0.01, 0.03))
+                time.sleep(0.3)
+                print(" ✓")
+                
+            # Note: removed health check since we try to connect anyway
+            
+            # Connect to MCP silently
+            print("\n", end="")  # Add a newline for spacing
             await self.mcp_client.connect()
             
             # Register notification handler
@@ -74,7 +111,18 @@ class MCPLLMBridge:
             # Process tool calls until we get a final response
             while response.is_tool_call and response.tool_calls:
                 tool_responses = await self._handle_tool_calls(response.tool_calls)
-                response = await self.llm_client.invoke(tool_responses, stream, stream_handler)
+                
+                # Properly invoke the LLM with the tool responses
+                try:
+                    response = await self.llm_client.invoke(tool_responses, stream, stream_handler)
+                except Exception as e:
+                    # If the LLM has trouble with the tool response, just show it once
+                    if len(tool_responses) == 1:
+                        # Don't print it here as it will be returned and printed later
+                        return tool_responses[0]['output']
+                    else:
+                        output = "\n".join(t['output'] for t in tool_responses)
+                        return output
             
             return response.content
         except Exception as e: return f"Error: {str(e)}"
@@ -100,7 +148,18 @@ class MCPLLMBridge:
                 
                 # Notify and execute
                 notify_tool_call(mcp_name)
-                arguments = json.loads(function_args) if isinstance(function_args, str) else function_args
+                # Handle empty string arguments
+                # Handle arguments properly - empty string, properly formatted JSON, or dict
+                if isinstance(function_args, str):
+                    if not function_args.strip():
+                        arguments = {}  # Empty arguments
+                    else:
+                        try:
+                            arguments = json.loads(function_args)
+                        except json.JSONDecodeError:
+                            arguments = {"text": function_args}  # Fallback for invalid JSON
+                else:
+                    arguments = function_args if function_args else {}
                 result = await self.mcp_client.call_tool(mcp_name, arguments)
                 
                 # Format response

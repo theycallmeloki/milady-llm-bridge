@@ -37,7 +37,7 @@ async def notify_mcp_notification(method, params):
 class MinimalProgressLogger:
     def __init__(self): self.in_cot_mode = False
     
-    def on_init_complete(self, tools=None): print("MCP connected.", flush=True)
+    def on_init_complete(self, tools=None): pass  # Silent initialization
     
     def on_tool_call(self, tool_name):
         if self.in_cot_mode: print("\n", end="", flush=True); self.in_cot_mode = False

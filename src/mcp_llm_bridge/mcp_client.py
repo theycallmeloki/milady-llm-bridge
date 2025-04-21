@@ -1,4 +1,5 @@
 # src/mcp_llm_bridge/mcp_client.py
+import json
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.client.sse import sse_client
