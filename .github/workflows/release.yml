@@ -65,7 +65,7 @@ jobs:
         uses: cross-platform-actions/action@v0.21.0
         with:
           operating_system: windows
-          architecture: x86
+          architecture: x86_64
           run: |
             python -m pip install --upgrade pip
             pip install pyinstaller
@@ -78,7 +78,7 @@ jobs:
         uses: cross-platform-actions/action@v0.21.0
         with:
           operating_system: macos
-          architecture: x86
+          architecture: x86_64
           run: |
             python -m pip install --upgrade pip
             pip install pyinstaller
