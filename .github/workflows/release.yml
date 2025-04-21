@@ -59,32 +59,6 @@ jobs:
       # Build Linux ARM64
       - name: Build Linux ARM64
         run: python build_binaries.py --platform arm64
-        
-      # Build Windows binary
-      - name: Build Windows AMD64 binary
-        uses: cross-platform-actions/action@v0.21.0
-        with:
-          operating_system: windows
-          architecture: x86_64
-          run: |
-            python -m pip install --upgrade pip
-            pip install pyinstaller
-            pip install -e .
-            mkdir -p dist
-            pyinstaller --onefile --name milady-windows-amd64.exe src/mcp_llm_bridge/main.py
-
-      # Build macOS AMD64 binary
-      - name: Build macOS AMD64 binary
-        uses: cross-platform-actions/action@v0.21.0
-        with:
-          operating_system: macos
-          architecture: x86_64
-          run: |
-            python -m pip install --upgrade pip
-            pip install pyinstaller
-            pip install -e .
-            mkdir -p dist
-            pyinstaller --onefile --name milady-macos-amd64 src/mcp_llm_bridge/main.py
       
       # Create GitHub release
       - name: Create Release
@@ -97,5 +71,90 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    needs: release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      
+      - name: Build Windows binary
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e .
+          mkdir -p dist
+          pyinstaller --onefile --name milady-windows-amd64.exe src/mcp_llm_bridge/main.py
+      
+      - name: Upload Windows binary
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.release.outputs.version }}
+          files: dist/milady-windows-amd64.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+  build-macos-intel:
+    needs: release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      
+      - name: Build macOS Intel binary
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e .
+          mkdir -p dist
+          pyinstaller --onefile --name milady-macos-amd64 src/mcp_llm_bridge/main.py
+      
+      - name: Upload macOS Intel binary
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.release.outputs.version }}
+          files: dist/milady-macos-amd64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+  build-macos-arm:
+    needs: release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      
+      - name: Build macOS ARM binary
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -e .
+          mkdir -p dist
+          # For ARM we need to do an explicit arch build
+          ARCHFLAGS="-arch arm64" pyinstaller --onefile --name milady-macos-arm64 src/mcp_llm_bridge/main.py
+      
+      - name: Upload macOS ARM binary
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.release.outputs.version }}
+          files: dist/milady-macos-arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
