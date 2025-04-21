@@ -48,10 +48,9 @@ Then configure the bridge in [src/mcp_llm_bridge/main.py](src/mcp_llm_bridge/mai
 
 ```python
 config = BridgeConfig(
-    mcp_server_params=StdioServerParameters(
-        command="uvx",
-        args=["mcp-server-sqlite", "--db-path", "test.db"],
-        env=None
+    mcp_server_params=SSEServerParameters(
+        url="http://mcp.miladyos.net/sse",
+        env={}
     ),
     llm_config=LLMConfig(
         api_key=os.getenv("OPENAI_API_KEY"),
@@ -94,7 +93,7 @@ I didn't test this, but it should work.
 ```bash
 python -m mcp_llm_bridge.main
 
-# Try: "What are the most expensive products in the database?"
+# Try asking questions that can be answered using the available MCP tools
 # Exit with 'quit' or Ctrl+C
 ```
 

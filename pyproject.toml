@@ -18,6 +18,9 @@ dependencies = [
     "colorlog>=6.9.0",
 ]
 
+[project.scripts]
+mcp-llm-bridge = "mcp_llm_bridge.main:cli_entry_point"
+
 [tool.poetry]
 name = "mcp-llm-bridge"
 version = "0.1.0"

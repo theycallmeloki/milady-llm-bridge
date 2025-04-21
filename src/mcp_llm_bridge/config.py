@@ -1,11 +1,15 @@
 # src/mcp_llm_bridge/config.py
 from dataclasses import dataclass
-from typing import Optional
+from typing import Dict, Optional
 from mcp import StdioServerParameters
 
 @dataclass
+class SSEServerParameters:
+    url: str
+    env: Optional[Dict[str, str]] = None
+
+@dataclass
 class LLMConfig:
-    """Configuration for LLM client"""
     api_key: str
     model: str
     base_url: Optional[str] = None
@@ -14,7 +18,6 @@ class LLMConfig:
 
 @dataclass
 class BridgeConfig:
-    """Configuration for the MCP-LLM Bridge"""
-    mcp_server_params: StdioServerParameters
+    mcp_server_params: object  # Either StdioServerParameters or SSEServerParameters
     llm_config: LLMConfig
     system_prompt: Optional[str] = None

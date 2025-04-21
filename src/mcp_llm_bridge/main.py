@@ -1,80 +1,63 @@
 # src/mcp_llm_bridge/main.py
-import os
-import asyncio
+import os, sys, asyncio, argparse
 from dotenv import load_dotenv
-from mcp import StdioServerParameters
-from mcp_llm_bridge.config import BridgeConfig, LLMConfig
+from mcp_llm_bridge.config import BridgeConfig, LLMConfig, SSEServerParameters
 from mcp_llm_bridge.bridge import BridgeManager
-import colorlog
-import logging
+from mcp_llm_bridge.logging_config import (
+    setup_logging, register_tool_call_callback, register_stream_token_callback,
+    register_mcp_notification_callback, MinimalProgressLogger
+)
 
-handler = colorlog.StreamHandler()
-handler.setFormatter(colorlog.ColoredFormatter(
-    "%(log_color)s%(levelname)s%(reset)s:     %(cyan)s%(name)s%(reset)s - %(message)s",
-    datefmt=None,
-    reset=True,
-    log_colors={
-        'DEBUG': 'cyan',
-        'INFO': 'green',
-        'WARNING': 'yellow',
-        'ERROR': 'red',
-        'CRITICAL': 'red,bg_white',
-    },
-    secondary_log_colors={},
-    style='%'
-))
-
-logger = colorlog.getLogger(__name__)
-logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+def parse_args():
+    parser = argparse.ArgumentParser(description="MCP LLM Bridge")
+    parser.add_argument("prompt", nargs='?', type=str, help="The prompt to send to the LLM")
+    parser.add_argument("--prompt", dest="prompt_flag", type=str, help="The prompt to send to the LLM (alternative flag format)")
+    return parser.parse_args()
 
 async def main():
-    # Load environment variables
+    os.environ['PYTHONUNBUFFERED'] = '1'
+    setup_logging()
     load_dotenv()
-
-    # Get the project root directory (where test.db is located)
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    db_path = os.path.join(project_root, "test.db")
     
-    # Configure bridge
+    args = parse_args()
+    
     config = BridgeConfig(
-        mcp_server_params=StdioServerParameters(
-            command="uvx",
-            args=["mcp-server-sqlite", "--db-path", db_path],
-            env=None
+        mcp_server_params=SSEServerParameters(
+            url="http://mcp.miladyos.net/sse",
+            env={}
         ),
-        # llm_config=LLMConfig(
-        #     api_key=os.getenv("OPENAI_API_KEY"),
-        #     model=os.getenv("OPENAI_MODEL", "gpt-4o"),
-        #     base_url=None
-        # ),
         llm_config=LLMConfig(
-            api_key="ollama",  # Can be any string for local testing
-            model="mistral-nemo:12b-instruct-2407-q8_0",
-            base_url="http://localhost:11434/v1"  # Point to your local model's endpoint
+            api_key="ollama",
+            model="Qwen/QwQ-32B-AWQ",
+            base_url="https://lmm.miladyos.net/v1"
         ),
         system_prompt="You are a helpful assistant that can use tools to help answer questions."
     )
     
-    logger.info(f"Starting bridge with model: {config.llm_config.model}")
-    logger.info(f"Using database at: {db_path}")
+    logger = MinimalProgressLogger()
+    register_tool_call_callback(logger.on_tool_call)
+    register_stream_token_callback(logger.on_stream_token)
+    register_mcp_notification_callback("notifications/progress", logger.on_mcp_notification)
     
-    # Use bridge with context manager
     async with BridgeManager(config) as bridge:
-        while True:
-            try:
-                user_input = input("\nEnter your prompt (or 'quit' to exit): ")
-                if user_input.lower() in ['quit', 'exit', 'q']:
-                    break
-                    
+        try:
+            logger.on_init_complete()
+            
+            # Use prompt_flag if provided, otherwise use positional prompt, or fallback to input
+            user_input = args.prompt_flag if args.prompt_flag else args.prompt if args.prompt else input("\nEnter your prompt: ")
+            
+            if user_input.strip():
                 response = await bridge.process_message(user_input)
-                print(f"\nResponse: {response}")
-                
-            except KeyboardInterrupt:
-                logger.info("\nExiting...")
-                break
-            except Exception as e:
-                logger.error(f"\nError occurred: {e}")
+                print(f"\n{response}", flush=True)
+            else:
+                print("\nNo input provided. Exiting...", flush=True)
+        except KeyboardInterrupt:
+            print("\nExiting...", flush=True)
+        except Exception as e:
+            print(f"\nError: {str(e)}", flush=True)
+
+def cli_entry_point():
+    asyncio.run(main())
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    cli_entry_point()
