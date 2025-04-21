@@ -71,7 +71,7 @@ jobs:
             pip install pyinstaller
             pip install -e .
             mkdir -p dist
-            pyinstaller --onefile --name milady-windows-amd64 src/mcp_llm_bridge/main.py
+            pyinstaller --onefile --name milady-windows-amd64.exe src/mcp_llm_bridge/main.py
 
       # Build macOS AMD64 binary
       - name: Build macOS AMD64 binary
