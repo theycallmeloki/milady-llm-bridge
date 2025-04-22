@@ -15,7 +15,7 @@ Read more about MCP by Anthropic here:
 
 Demo:
 
-![MCP LLM Bridge Demo](assets/output.gif)
+![MCP LLM Bridge Demo](assets/milady.gif)
 
 ## Quick Install
 
