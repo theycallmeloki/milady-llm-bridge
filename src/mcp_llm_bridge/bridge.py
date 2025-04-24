@@ -13,6 +13,26 @@ class MCPLLMBridge:
         if config.system_prompt: self.llm_client.system_prompt = config.system_prompt
         self.available_tools = []
         self.tool_name_mapping = {}
+        
+    async def update_template(self, template_name, content):
+        """Update a template directly from piped input without using MCP or LLMs.
+        Specifically designed to handle Jenkinsfile templates."""
+        try:
+            # Call edit_template or create_template tool directly
+            result = await self.mcp_client.call_tool(
+                "edit_template", 
+                {"template_name": template_name, "content": content}
+            )
+            return result
+        except Exception as e:
+            # If edit_template failed (template doesn't exist yet), try create_template
+            try:
+                return await self.mcp_client.call_tool(
+                    "create_template", 
+                    {"template_name": template_name, "content": content}
+                )
+            except Exception as inner_e:
+                raise RuntimeError(f"Failed to update template: {str(inner_e) or str(e)}")
 
     async def initialize(self):
         try:
@@ -193,3 +213,9 @@ class BridgeManager:
         
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.bridge: await self.bridge.close()
+        
+    async def update_template(self, template_name, content):
+        """Proxy to bridge's update_template method"""
+        if not self.bridge:
+            raise RuntimeError("Bridge not initialized")
+        return await self.bridge.update_template(template_name, content)

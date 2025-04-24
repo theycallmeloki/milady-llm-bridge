@@ -12,6 +12,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="MCP LLM Bridge")
     parser.add_argument("prompt", nargs='?', type=str, help="The prompt to send to the LLM")
     parser.add_argument("--prompt", dest="prompt_flag", type=str, help="The prompt to send to the LLM (alternative flag format)")
+    parser.add_argument("--template", type=str, help="Template name to update when using piped input")
     return parser.parse_args()
 
 async def main():
@@ -39,12 +40,26 @@ async def main():
     register_stream_token_callback(logger.on_stream_token)
     register_mcp_notification_callback("notifications/progress", logger.on_mcp_notification)
     
-    async with BridgeManager(config) as bridge:
+    # Check if stdin has data (piped input)
+    stdin_data = ""
+    if not sys.stdin.isatty():
+        stdin_data = sys.stdin.read().strip()
+    
+    # Create the bridge manager
+    bridge_manager = BridgeManager(config)
+    
+    async with bridge_manager as bridge:
         try:
             logger.on_init_complete()
             
-            # Use prompt_flag if provided, otherwise use positional prompt, or fallback to input
-            user_input = args.prompt_flag if args.prompt_flag else args.prompt if args.prompt else input("\nEnter your prompt: ")
+            # Handle template update from stdin if template flag is provided
+            if args.template and stdin_data:
+                await bridge_manager.update_template(args.template, stdin_data)
+                print(f"\nTemplate '{args.template}' updated successfully.", flush=True)
+                return
+            
+            # Use prompt_flag if provided, otherwise use positional prompt, or stdin data, or fallback to input
+            user_input = args.prompt_flag if args.prompt_flag else args.prompt if args.prompt else stdin_data if stdin_data else input("\nEnter your prompt: ")
             
             if user_input.strip():
                 response = await bridge.process_message(user_input)

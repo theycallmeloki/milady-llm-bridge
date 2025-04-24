@@ -342,12 +342,20 @@ async def test_bridge_manager(mock_config):
         # Setup mock
         mock_bridge_instance = AsyncMock()
         mock_bridge_instance.initialize.return_value = True
+        mock_bridge_instance.update_template.return_value = "Template updated successfully"
         MockBridge.return_value = mock_bridge_instance
 
         # Test context manager
-        async with BridgeManager(mock_config) as bridge:
+        bridge_manager = BridgeManager(mock_config)
+        async with bridge_manager as bridge:
             assert bridge is mock_bridge_instance
             mock_bridge_instance.initialize.assert_called_once()
+            
+        # Test update_template proxy method
+        bridge_manager.bridge = mock_bridge_instance  # Manually set for testing
+        result = await bridge_manager.update_template("test-template", "Template content")
+        assert result == "Template updated successfully"
+        mock_bridge_instance.update_template.assert_called_once_with("test-template", "Template content")
 
 @pytest.mark.asyncio
 async def test_error_handling(mock_config):
@@ -693,6 +701,51 @@ async def test_complex_input_schema_handling(mock_config, mock_run_pipeline_tool
         assert call_args[1]["parameters"]["target"] == "snowflake"
         assert call_args[1]["parameters"]["options"]["batch_size"] == 1000
         assert "tables" in call_args[1]["parameters"]
+
+@pytest.mark.asyncio
+async def test_direct_template_update(mock_config, mock_edit_template_tool, mock_create_template_tool):
+    with patch('mcp_llm_bridge.bridge.MCPClient') as MockMCPClient, \
+         patch('mcp_llm_bridge.bridge.LLMClient') as MockLLMClient:
+        
+        # Setup mocks
+        mock_mcp_instance = AsyncMock()
+        mock_mcp_instance.get_available_tools.return_value = [mock_edit_template_tool, mock_create_template_tool]
+        
+        # First call is edit_template, which succeeds
+        mock_mcp_instance.call_tool.side_effect = [
+            "Template edited successfully",
+            "Template created successfully",  # For the create case below
+            Exception("Template not found"),  # For testing fallback
+            "Template created successfully"   # For fallback to create
+        ]
+        
+        MockMCPClient.return_value = mock_mcp_instance
+        
+        # Create bridge
+        bridge = MCPLLMBridge(mock_config)
+        await bridge.initialize()
+        
+        # Test update existing template
+        result = await bridge.update_template("existing-template", "Updated content")
+        assert result == "Template edited successfully"
+        call_args = mock_mcp_instance.call_tool.call_args_list[0][0]
+        assert call_args[0] == "edit_template"
+        assert call_args[1]["template_name"] == "existing-template"
+        assert call_args[1]["content"] == "Updated content"
+        
+        # Test create new template
+        result = await bridge.update_template("new-template", "New content")
+        assert result == "Template created successfully"
+        call_args = mock_mcp_instance.call_tool.call_args_list[1][0]
+        assert call_args[0] == "create_template"
+        assert call_args[1]["template_name"] == "new-template"
+        assert call_args[1]["content"] == "New content"
+        
+        # Test fallback to create when edit fails
+        result = await bridge.update_template("non-existent-template", "Fallback content")
+        assert result == "Template created successfully"
+        assert mock_mcp_instance.call_tool.call_args_list[2][0][0] == "edit_template"  # First tries edit
+        assert mock_mcp_instance.call_tool.call_args_list[3][0][0] == "create_template"  # Then falls back to create
 
 @pytest.mark.asyncio
 async def test_tool_result_handling_for_different_response_types(mock_config, mock_hello_world_tool):
