@@ -17,20 +17,47 @@ class MCPLLMBridge:
     async def update_template(self, template_name, content):
         """Update a template directly from piped input without using MCP or LLMs.
         Specifically designed to handle Jenkinsfile templates."""
+        import json
+        
         try:
             # Call edit_template or create_template tool directly
             result = await self.mcp_client.call_tool(
                 "edit_template", 
                 {"template_name": template_name, "content": content}
             )
+            
+            # Check if edit failed with "Template does not exist" error
+            if hasattr(result, 'content') and len(result.content) > 0:
+                text_content = result.content[0].text if hasattr(result.content[0], 'text') else str(result.content[0])
+                try:
+                    response_json = json.loads(text_content)
+                    if not response_json.get("success", True) and "does not exist" in response_json.get("error", ""):
+                        # Template doesn't exist, try create_template instead
+                        create_result = await self.mcp_client.call_tool(
+                            "create_template", 
+                            {
+                                "template_name": template_name, 
+                                "content": content,
+                                "description": "Ingested via milady"
+                            }
+                        )
+                        return create_result
+                except Exception:
+                    pass
+            
             return result
         except Exception as e:
             # If edit_template failed (template doesn't exist yet), try create_template
             try:
-                return await self.mcp_client.call_tool(
+                result = await self.mcp_client.call_tool(
                     "create_template", 
-                    {"template_name": template_name, "content": content}
+                    {
+                        "template_name": template_name, 
+                        "content": content,
+                        "description": "Ingested via milady"
+                    }
                 )
+                return result
             except Exception as inner_e:
                 raise RuntimeError(f"Failed to update template: {str(inner_e) or str(e)}")
 
