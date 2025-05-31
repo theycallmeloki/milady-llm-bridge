@@ -54,7 +54,7 @@ jobs:
           pip install pyinstaller
           pip install -e .
           mkdir -p dist
-          pyinstaller --onefile --name milady-linux-amd64 src/mcp_llm_bridge/main.py
+          pyinstaller --onefile --name computer-linux-amd64 src/mcp_llm_bridge/main.py
 
       # Build Linux ARM64
       - name: Build Linux ARM64
@@ -67,7 +67,7 @@ jobs:
         with:
           tag_name: v${{ steps.version.outputs.new_version }}
           name: Release v${{ steps.version.outputs.new_version }}
-          files: dist/milady-*
+          files: dist/computer-*
           draft: false
           prerelease: false
           generate_release_notes: true
@@ -92,13 +92,13 @@ jobs:
           pip install pyinstaller
           pip install -e .
           mkdir -p dist
-          pyinstaller --onefile --name milady-windows-amd64.exe src/mcp_llm_bridge/main.py
+          pyinstaller --onefile --name computer-windows-amd64.exe src/mcp_llm_bridge/main.py
       
       - name: Upload Windows binary
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.release.outputs.version }}
-          files: dist/milady-windows-amd64.exe
+          files: dist/computer-windows-amd64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
@@ -120,13 +120,13 @@ jobs:
           pip install pyinstaller
           pip install -e .
           mkdir -p dist
-          pyinstaller --onefile --name milady-macos-amd64 src/mcp_llm_bridge/main.py
+          pyinstaller --onefile --name computer-macos-amd64 src/mcp_llm_bridge/main.py
       
       - name: Upload macOS Intel binary
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.release.outputs.version }}
-          files: dist/milady-macos-amd64
+          files: dist/computer-macos-amd64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
@@ -149,12 +149,12 @@ jobs:
           pip install -e .
           mkdir -p dist
           # For ARM we need to do an explicit arch build
-          ARCHFLAGS="-arch arm64" pyinstaller --onefile --name milady-macos-arm64 src/mcp_llm_bridge/main.py
+          ARCHFLAGS="-arch arm64" pyinstaller --onefile --name computer-macos-arm64 src/mcp_llm_bridge/main.py
       
       - name: Upload macOS ARM binary
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.release.outputs.version }}
-          files: dist/milady-macos-arm64
+          files: dist/computer-macos-arm64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

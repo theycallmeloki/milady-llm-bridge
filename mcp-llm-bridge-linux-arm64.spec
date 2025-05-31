@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='mcp-llm-bridge-linux-arm64',
+    name='computer-linux-arm64',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
