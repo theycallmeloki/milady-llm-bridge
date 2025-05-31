@@ -22,13 +22,13 @@ Demo:
 One-liner to install the latest release:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/theycallmeloki/milady-llm-bridge/main/install_milady.sh | bash
+curl -sSL https://raw.githubusercontent.com/theycallmeloki/milady-llm-bridge/main/install_computer.sh | bash
 ```
 
 The script will detect your operating system and architecture, download the appropriate binary, and install it to the most appropriate location:
-- `/usr/local/bin/milady` if you have write access
+- `/usr/local/bin/computer` if you have write access
 - Tries to use `sudo` if available
-- Falls back to `~/.local/bin/milady` for user-specific installation
+- Falls back to `~/.local/bin/computer` for user-specific installation
 
 ## Building from Source
 

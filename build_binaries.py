@@ -41,7 +41,7 @@ def build_native():
     dist_dir.mkdir(exist_ok=True)
     
     # Set binary name based on platform
-    binary_name = f"milady-{system}-{machine}"
+    binary_name = f"computer-{system}-{machine}"
     if system == "windows":
         binary_name += ".exe"
     
@@ -78,7 +78,7 @@ def build_docker(platform, arch):
     else:
         docker_platform = f"linux/{arch}"
     
-    binary_name = f"milady-{platform}-{arch}"
+    binary_name = f"computer-{platform}-{arch}"
     if platform == "windows":
         binary_name += ".exe"
     
