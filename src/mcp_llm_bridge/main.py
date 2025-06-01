@@ -29,7 +29,7 @@ async def main():
         ),
         llm_config=LLMConfig(
             api_key="ollama",
-            model="Qwen/QwQ-32B-AWQ",
+            model="deepseek-r1:1.5b",
             base_url="https://lmm.miladyos.net/v1"
         ),
         system_prompt="You are a helpful assistant that can use tools to help answer questions."
